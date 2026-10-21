@@ -1165,7 +1165,8 @@ function renderTenureAgeCompare(){
   document.getElementById('tenureBucketNote').textContent = `${isTen ? '그룹입사일' : '만 나이'} 기준 · 총 ${n}명(임원·고문 제외)`;
 }
 
-function renderLevelCompare(counts, total, org){
+  function onLvSel(v){ window.__lvSel = v; renderLevelCompare(); }
+  function renderLevelCompare(counts, total, org){
   const box = document.getElementById('levelCompareBox');
   if(!box) return;
   const co = state.companyLevel;
@@ -1173,7 +1174,17 @@ function renderLevelCompare(counts, total, org){
     box.innerHTML = '<div class="lvc-empty">전사명부를 업로드하면 전사 대비 직급 분포가 표시됩니다.</div>';
     return;
   }
-  const label = org || divName();
+  // 비교 조직은 이 카드의 드롭다운으로 고릅니다(연구소 배포본은 고정). 위의 조직 필터 트리와는 별개입니다.
+  const fixed = !!ACTIVE_VIEW;
+  const opts = eduSelOptions();
+  const sel = fixed ? 'ALL' : (opts.some(o => o.key === window.__lvSel) ? window.__lvSel : 'ALL');
+  const label = opts.find(o => o.key === sel).label;
+  counts = {}; LEVEL_NUMS.forEach(n => { counts[n] = 0; });
+  (window.__levelAllRows || []).filter(r => sel === 'ALL' || groupOf(r['원소속부서']) === sel).forEach(r => {
+    const n = isExec(r) ? null : levelKey(r['직급코드']);
+    if(n) counts[n]++;
+  });
+  total = LEVEL_NUMS.reduce((a,n) => a + counts[n], 0);
   const nums = [...LEVEL_NUMS].sort((a,b) => a - b); // L3 -> L7
   const items = nums.map(n => ({
     lv: 'L' + n,
@@ -1190,7 +1201,8 @@ function renderLevelCompare(counts, total, org){
     `<div class="lvc-lab">${i.lv}<small>전사 | ${label}</small></div></div>`
   ).join('');
   box.innerHTML =
-    `<div class="lvc-title">전사 대비 직급 분포 <span>(비교 조직: ${label})</span></div>` +
+    `<div class="edc-hd" style="margin-top:0;padding-top:0;border-top:none;"><div-class="lvc-title">전사 대비 직급 분포</div>` +
+    (fixed ? '' : `<select onchange="onLvSel(this.value)">${opts.map(o => `<option value="${o.key}"${o.key === sel ? ' selected' : ''}>${o.label}</option>`).join('')}</select>`) + `</div>` +
     `<div class="lvc-legend"><span><i style="background:#B8C0CC"></i>전사(${divName()} 포함) ${co.total.toLocaleString()}명</span>` +
     `<span><i style="background:var(--c1)"></i>${label} ${total.toLocaleString()}명</span></div>` +
     `<div class="lvc-chart">${groups}</div>` +
@@ -2723,7 +2735,7 @@ function exportSnapshot(scopeMode){
   }
   const view = scopeMode === true ? SCOPE_VIEW : null;
   const keep = { curr: state.curr, prev: state.prev, retirees: state.retirees, contractDates: state.contractDates, dispatchStart: state.dispatchStart, view: ACTIVE_VIEW };
-  const keepSel = [window.__eduSel, window.__tenSel, window.__tenTab]; window.__eduSel = window.__tenSel = window.__tenTab = null;   // 저장본은 항상 기본 선택으로 저장
+  const keepSel = [window.__eduSel, window.__tenSel, window.__tenTab, window.__lvSel]; window.__eduSel = window.__tenSel = window.__tenTab = window.__lvSel = null;   // 저장본은 항상 기본 선택으로 저장
   const rerender = () => { renderAllFromCurrent(); if(state.prev) renderComparison(); };
   try{
     const sub = buildExportSubset(view);
@@ -2736,7 +2748,7 @@ function exportSnapshot(scopeMode){
     state.curr = keep.curr; state.prev = keep.prev; state.retirees = keep.retirees;
     state.contractDates = keep.contractDates; state.dispatchStart = keep.dispatchStart;
     ACTIVE_VIEW = keep.view;
-    [window.__eduSel, window.__tenSel, window.__tenTab] = keepSel;
+    [window.__eduSel, window.__tenSel, window.__tenTab, window.__lvSel] = keepSel;
     rerender();
   }
 }
