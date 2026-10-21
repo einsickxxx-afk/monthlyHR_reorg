@@ -176,7 +176,7 @@
   .edc-up{ color:#2F6FED; font-weight:700; } .edc-dn{ color:#C6431E; font-weight:700; }
   .edc-hd{ display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:1px dashed var(--border); }
   .edc-sub{ font-size:12.5px; font-weight:700; color:var(--dark); }
-  .edc-hd select{ font-family:inherit; font-size:12px; border:1px solid var(--border); border-radius:6px; padding:4px 8px; color:var(--dark); background:#fff; }
+  .edc-hd select{ font-family:inherit; font-size:12px; border:1px solid var(--border); border-radius:6px; padding:4px 8px; wwidth:150px; color:var(--dark); background:#fff; }
   .edc-chart{ display:flex; justify-content:space-around; align-items:flex-end; padding:0 30px; }
   .edc-g{ display:flex; flex-direction:column; align-items:center; }
   .edc-pair{ display:flex; gap:6px; align-items:flex-end; border-bottom:1px solid var(--border); padding:0 6px; }
@@ -915,7 +915,7 @@ function renderLevelCard(active){
   window.__levelAllRows = active;
 
   document.getElementById('levelContent').innerHTML = `
-    <div id="levelFilterBox" style="margin-bottom:10px;">${buildLevelFilterTree()}</div>
+    <div id="levelFilterBox" class="edc-hd" style="margin:0 0 4px;padding:0;border:none;">${buildLevelFilterTree()}</div>
     <div id="levelChartBox"></div>
     <div id="levelCompareBox" class="lvc-wrap"></div>
   `;
@@ -925,43 +925,18 @@ function renderLevelCard(active){
 // 직급별 인원현황 카드 전용 조직 필터 트리입니다. '해양사업부 전체'를 기본값으로 두고,
 // 부서별 인원현황 카드와 동일하게 그룹 → 조직 자체 → 하위팀 3단계로 구성합니다.
 function buildLevelFilterTree(){
-  let html = `<div class="level-filter-node" data-org="" onclick="onLevelFilterClick(this)"
-    style="font-weight:700;font-size:11.5px;padding:4px 6px;cursor:pointer;background:#EEF1F6;border-radius:4px;">${divName()} 전체</div>`;
-
-  GROUP_ORDER.forEach((g, gi) => {
+  // 조직 필터 트리 대신 드롭다운으로 구성합니다(그룹>조직 자체>하위팀). 연구소 배포본은 연구소 소속 팀만 나옵니다. 
+  let html = `<div class="edc-sub">직급별 인원 구성</div><select onchange="onLevelSel(this.value)"><option value="">${divName()} 전체</option>`;
+  GROUP_ORDER.forEach(g => {
     const order = deptOrder(g);
     if(order.length === 0) return;
-    const selfOrg = order[0];
-    const children = order.slice(1);
-    const gid = 'lvl' + gi;
-
-    html += `<div style="display:flex;align-items:center;cursor:pointer;padding:5px 0 3px;" onclick="toggleCollapse('${gid}')">
-      <span id="arrow-${gid}" style="display:inline-block;margin-right:4px;transition:transform .15s;transform:rotate(90deg);font-size:10px;color:#475467;">▶</span>
-      <span style="font-size:11.5px;font-weight:700;color:var(--dark);">${g}</span>
-    </div>`;
-
-    html += `<div class="grp-${gid} level-filter-node" data-disp="block" data-org="${esc(selfOrg)}" onclick="onLevelFilterClick(this)"
-      style="display:block;font-size:11px;font-weight:700;color:#344054;padding:3px 6px 3px 18px;cursor:pointer;border-radius:4px;">
-      <span style="color:#98A2B3;margin-right:4px;">↳</span>${selfOrg}
-    </div>`;
-
-    html += children.map(t => `
-      <div class="grp-${gid} level-filter-node" data-disp="block" data-org="${esc(t)}" onclick="onLevelFilterClick(this)"
-        style="display:block;font-size:11px;color:#475467;padding:3px 6px 3px 36px;cursor:pointer;border-radius:4px;">
-        <span style="color:#98A2B3;margin-right:4px;">↳</span>${t}
-      </div>
-    `).join('');
+    html += `<optgroup label="${g}">` + order.map(t => `<option value="${t}">${t}</option>`).join('') + `</optgroup>`;
   });
-  return html;
+  return html + '</select>';
 }
 
-function onLevelFilterClick(el){
-  document.querySelectorAll('.level-filter-node').forEach(n => n.style.background = '');
-  el.style.background = '#EEF1F6';
-  const org = el.dataset.org;
-  computeAndRenderLevel(org || null);
-}
-
+function onLevelSel(org){ computeAndRenderLevel(org || null); }
+ 
 function computeAndRenderLevel(org){
   const rows = window.__levelAllRows || [];
   const filtered = org ? rows.filter(r => teamsOf(r).includes(org)) : rows;
